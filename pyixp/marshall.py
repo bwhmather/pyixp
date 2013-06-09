@@ -1,6 +1,6 @@
 import logging
 import socket
-from construct import UBInt16, UBInt32
+from construct import Struct, UBInt16, UBInt32, String, Container, FieldError
 
 from threading import Thread, Condition
 from queue import Queue, LifoQueue
@@ -26,16 +26,6 @@ def recvall(socket, n):
     return bytes(data)
 
 
-def send_packet(socket, data):
-    if isinstance(data, bytes):
-        data = [data]
-    header = [UBInt32("length").build(4 + sum(len(x) for x in data))]
-
-    # packet is fully assembled before sending to make sure that failures as a
-    # result of invalid input do not result in partially sent packets
-    socket.sendall(b''.join(header + data))
-
-
 def recv_packet(socket):
     header = recvall(socket, 4)
     length = UBInt32("length").parse(header[:4])
@@ -50,6 +40,12 @@ class Marshall(object):
     corresponding responses.
     """
     _NOTAG = 0
+
+    _packet_format = Struct("packet",
+        UBInt32("length"),
+        UBInt16("tag"),
+        String("body", lambda ctx: ctx.length - 6)
+    )
 
     def __init__(self, socket, maxtag=1024):
         """
@@ -101,19 +97,19 @@ class Marshall(object):
             tag = self._tags.get()
         else:
             tag = self._NOTAG
-        assert tag not in self._callbacks
-        self._callbacks[tag] = callback
-
-        header = [UBInt16("tag").build(tag)]
 
         try:
-            send_packet(self._socket, header + data)
-        except TypeError as error:
-            # TypeError indicates that data was invalid and so none was
-            # send.  Should be recoverable.
+            packet = self._packet_format.build(Container(
+                length=len(data)+6,
+                tag=tag,
+                body=data
+            ))
+
+        except (FieldError, TypeError) as error:
+            # errors while building a packet are generally a consequence of
+            # invalid user input and should not be fatal
             if tag != self._NOTAG:
                 self._tags.put(tag)
-            del self._callbacks[tag]
 
             try:
                 callback(None, error)
@@ -121,6 +117,11 @@ class Marshall(object):
                 log.exception("exception in user callback", stack_info=True)
 
             return
+
+        assert tag not in self._callbacks
+        self._callbacks[tag] = callback
+
+        self._socket.sendall(packet)
 
         # if nothing went wrong, notify the recv loop that another
         # response message is expected
@@ -207,7 +208,7 @@ class Marshall(object):
         """ Send a 9p request to the server and wait for a response
 
         :param packet: the contents of the packet to send to the server.
-        :type packet: bytestring or list of bytestrings
+        :type packet: bytestring
 
         :param callback: if provided the request will be executed
             asynchronously.  If the request is successfull the callback will be
@@ -224,9 +225,6 @@ class Marshall(object):
             return self._request_sync(packet, notag)
 
         log.info("request")
-
-        if isinstance(packet, bytes):
-            packet = [packet]
 
         self._send_queue.put((packet, callback, notag,))
 
