@@ -62,7 +62,8 @@ class Marshall(object):
         self._socket = socket
 
         # queue of ``(data, callback,)`` tuples for submission of requests to
-        # the send thread
+        # the send thread.  Submitting a task which evaluates to False will
+        # cause the send loop to exit
         self._send_queue = Queue()
 
         # queue of booleans used as a counter for the number of remaining
@@ -134,8 +135,8 @@ class Marshall(object):
             try:
                 task = self._send_queue.get()
 
-                if task == "quit":
-                    self._recv_queue.put(False)
+                # if task is False, shut down
+                if not task:
                     log.info("quiting send loop")
                     return
 
@@ -171,7 +172,7 @@ class Marshall(object):
         while True:
             try:
                 if not self._recv_queue.get():
-                    log.info("quiting send loop")
+                    log.info("quiting receive loop")
                     return
 
                 self._do_recv()
@@ -239,31 +240,55 @@ class Marshall(object):
         def raise_marshall_closed_error(*args, **kwargs):
             raise Exception("marshall closed")
 
-        # TODO check that putting everything in one statement actually makes
-        # this atomic
-        send_queue_put, self._send_queue.put = \
-            self._send_queue.put, raise_marshall_closed_error
+        send_queue_put = self._send_queue.put
+        self._send_queue.put = raise_marshall_closed_error
 
         # wait for send queue to empty
         self._send_queue.join()
 
-        # send message to tell the send loop to quit immediately and set a flag
-        # so that the recv loop does likewise when all expected replies have
-        # been received and processed
-        send_queue_put("quit")
-        self._quit = True
-
-        # wait for threads to quit
+        # tell the send thread to quit then wait for it to do so
+        send_queue_put(False)
         self._send_thread.join()
+
+        # likewise for receive
+        self._recv_queue.put(False)
         self._recv_thread.join()
 
         # close socket
         self._socket.shutdown(socket.SHUT_RDWR)
+        self._socket.close()
+
+        for callback in self._callbacks.values():
+            try:
+                callback(None, None)
+            except:
+                log.exception("exception in user callback", stack_info=True)
+
+        log.info("successfully shut down multiplexer")
 
     def close(self, error=None):
         """ Immediately close the socket and cancel all remaining callbacks
+        without any ceremony. ``shutdown`` should be prefered in most cases
 
         :param error: passed as the error argument to all remaining callbacks
         :type Exception:
         """
-        raise NotImplementedError()
+        log.info("terminating multiplexer")
+
+        self._socket.close()
+
+        # neither loop will notice that the socket is closed unless it is
+        # working on something
+        self._send_queue.put(False)
+        self._recv_queue.put(False)
+
+        self._send_thread.join()
+        self._recv_thread.join()
+
+        for callback in self._callbacks.values():
+            try:
+                callback(None, error)
+            except:
+                log.exception("exception in user callback", stack_info=True)
+
+        log.info("successfully terminated multiplexer")
