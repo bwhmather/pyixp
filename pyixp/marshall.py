@@ -41,12 +41,6 @@ class Marshall(object):
     """
     _NOTAG = 0
 
-    _packet_format = Struct("packet",
-        UBInt32("length"),
-        UBInt16("tag"),
-        String("body", lambda ctx: ctx.length - 6)
-    )
-
     def __init__(self, socket, maxtag=1024):
         """
         :param socket:  connection to the server.  The socket will be closed by
@@ -100,11 +94,9 @@ class Marshall(object):
             tag = self._NOTAG
 
         try:
-            packet = self._packet_format.build(Container(
-                length=len(data)+6,
-                tag=tag,
-                body=data
-            ))
+            packet = UBInt32('').build(len(data)+6) + \
+                     UBInt16('').build(tag) + \
+                     data
 
         except (FieldError, TypeError) as error:
             # errors while building a packet are generally a consequence of
