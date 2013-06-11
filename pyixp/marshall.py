@@ -1,6 +1,6 @@
 import logging
 import socket
-from construct import Struct, UBInt16, UBInt32, String, Container, FieldError
+from construct import UBInt16, UBInt32, FieldError
 
 from threading import Thread, Condition
 from queue import Queue, LifoQueue
