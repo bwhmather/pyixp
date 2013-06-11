@@ -278,11 +278,11 @@ class Marshall(object):
         self._socket.close()
 
         # neither loop will notice that the socket is closed unless it is
-        # working on something
+        # working on something so it is still necessary to send quit signals
         self._send_queue.put(False)
-        self._recv_queue.put(False)
-
         self._send_thread.join()
+
+        self._recv_queue.put(False)
         self._recv_thread.join()
 
         for callback in self._callbacks.values():
