@@ -1,6 +1,6 @@
 import logging
 import socket
-from construct import UBInt16, UBInt32, FieldError
+import struct
 
 from threading import Thread, Condition
 from queue import Queue, LifoQueue
@@ -8,6 +8,8 @@ from queue import Queue, LifoQueue
 __all__ = 'Marshall',
 
 log = logging.getLogger(__name__)
+
+_header = struct.Struct("!IHH")
 
 
 def recvall(socket, n):
@@ -24,15 +26,6 @@ def recvall(socket, n):
     # TODO would be nice if this could be done without a copy (not that it
     # makes any real difference)
     return bytes(data)
-
-
-def recv_packet(socket):
-    header = recvall(socket, 4)
-    length = UBInt32("length").parse(header[:4])
-    if length < 4:
-        raise Exception("invalid frame length: %i" % length)
-
-    return recvall(socket, length - 4)
 
 
 class Marshall(object):
@@ -83,7 +76,7 @@ class Marshall(object):
         self._recv_thread = Thread(target=self._recv_loop, daemon=True)
         self._recv_thread.start()
 
-    def _do_send(self, data, callback, notag):
+    def _do_send(self, message, callback, notag):
         # bind the callback to a new tag.
         # self._tags.get() should block until a tag becomes available.
         # if a recoverable error occurs this step will be manually
@@ -93,12 +86,13 @@ class Marshall(object):
         else:
             tag = self._NOTAG
 
+        type = 1
         try:
-            packet = UBInt32('').build(len(data)+6) + \
-                     UBInt16('').build(tag) + \
-                     data
+            header = _header.pack(len(message)+_header.size,
+                                  type, tag)
+            message = bytes(message)
 
-        except (FieldError, TypeError) as error:
+        except (TypeError) as error:
             # errors while building a packet are generally a consequence of
             # invalid user input and should not be fatal
             if tag != self._NOTAG:
@@ -114,7 +108,8 @@ class Marshall(object):
         assert tag not in self._callbacks
         self._callbacks[tag] = callback
 
-        self._socket.sendall(packet)
+        self._socket.sendall(header)
+        self._socket.sendall(message)
 
         # if nothing went wrong, notify the recv loop that another
         # response message is expected
@@ -141,13 +136,12 @@ class Marshall(object):
                 self.close(error)
 
     def _do_recv(self):
+        header = recvall(self._socket, _header.size)
+        length, type, tag = struct.unpack("!IHH", header)
+        if length < _header.size:
+            raise Exception("invalid frame length: %i" % length)
 
-        # read and parse packet
-        body = recv_packet(self._socket)
-        log.debug("packet received")
-
-        tag = UBInt16("tag").parse(body[:2])
-        body = body[2:]
+        body = recvall(self._socket, length - _header.size)
 
         # retrieve callback and return tag to free list
         callback = self._callbacks.pop(tag)

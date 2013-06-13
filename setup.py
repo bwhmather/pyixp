@@ -11,7 +11,4 @@ setup(
     url='http://github.org/bwhmather/pyixp',
     packages=['pyixp'],
     license='MIT',
-    install_requires=[
-        'construct',
-    ],
 )
