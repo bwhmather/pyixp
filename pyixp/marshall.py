@@ -87,34 +87,16 @@ class Marshall(object):
         else:
             tag = self._NOTAG
 
-        type = 1
-        try:
-            header = _header.pack(len(message)+_header.size,
-                                  type, tag)
-            message = bytes(message)
-
-        except (TypeError) as error:
-            # errors while building a packet are generally a consequence of
-            # invalid user input and should not be fatal
-            if tag != self._NOTAG:
-                self._tags.put(tag)
-
-            try:
-                callback(None, error)
-            except:
-                log.exception("exception in user callback", stack_info=True)
-
-            return
-
         assert tag not in self._callbacks
         self._callbacks[tag] = callback
 
+        # TODO TODO TODO TODO
+        type = 1
+
+        header = _header.pack(len(message)+_header.size, type, tag)
+
         self._socket.sendall(header)
         self._socket.sendall(message)
-
-        # if nothing went wrong, notify the recv loop that another
-        # response message is expected
-        self._recv_queue.put(True)
 
     def _send_loop(self):
         """ loop for sending packets
@@ -129,6 +111,10 @@ class Marshall(object):
                     return
 
                 self._do_send(*task)
+
+                # if nothing went wrong, notify the recv loop that another
+                # response message is expected
+                self._recv_queue.put(True)
 
                 self._send_queue.task_done()
 
