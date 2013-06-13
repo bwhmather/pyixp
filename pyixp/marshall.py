@@ -13,6 +13,8 @@ _header = struct.Struct("!IHH")
 
 
 def recvall(socket, n):
+    """ Read exactly n bytes from a socket
+    """
     data = bytearray(n)
     window = memoryview(data)
     while len(window):
@@ -34,17 +36,16 @@ class Marshall(object):
     """
     _NOTAG = 0
 
-    def __init__(self, socket, maxtag=1024):
+    def __init__(self, socket, maxrequests=1024):
         """
         :param socket:  connection to the server.  The socket will be closed by
             the marshall on shutdown.
 
-        :param maxtag: sets an upper limit on the number of requests that can
-            be sent to the server without receiving a response.  If there are
-            no tags available the send loop will block waiting for a response
-            to free one up before sending another request.  Maximum possible
-            value is 65535.
-        :type maxtag: unsigned 16bit integer (0 <= maxtag <= 65535)
+        :param maxrequests: sets an upper limit on the number of requests that
+            can be sent to the server without receiving a response.  Requests
+            made beyond the limit will not be dropped but will instead wait for
+            an earlier request to finish.  Maximum possible value is 65535.
+        :type maxrequests: unsigned 16bit integer (0 <= maxtag <= 65535)
         """
         self._socket = socket
 
@@ -63,8 +64,8 @@ class Marshall(object):
         # stack of available transaction tags that can be assigned to new
         # requests.
         # tags are used to identify the request that a response corresponds to.
-        self._tags = LifoQueue(maxsize=maxtag)
-        for tag in range(1, maxtag):
+        self._tags = LifoQueue(maxsize=maxrequests)
+        for tag in range(1, maxrequests):
             self._tags.put(tag)
 
         # map from transaction tags (uint16) to completion callbacks
