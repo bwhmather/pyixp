@@ -49,9 +49,9 @@ class Marshall(object):
         """
         self._socket = socket
 
-        # queue of ``(data, callback,)`` tuples for submission of requests to
-        # the send thread.  Submitting a task which evaluates to False will
-        # cause the send loop to exit
+        # queue of ``(type, request, on_error, on_success, sequential)`` tuples
+        # for passing requests to the send thread.  Adding false to the queue
+        # will cause the send loop to exit
         self._send_queue = Queue()
 
         # queue of booleans used as a counter for the number of remaining
@@ -71,32 +71,34 @@ class Marshall(object):
         # map from transaction tags (uint16) to completion callbacks
         self._callbacks = {}
 
+        # responses to callbacks without tags are dispatched in the same order
+        # the as the requests were submitted
+        self._sequential_callbacks = Queue()
+
         self._send_thread = Thread(target=self._send_loop, daemon=True)
         self._send_thread.start()
 
         self._recv_thread = Thread(target=self._recv_loop, daemon=True)
         self._recv_thread.start()
 
-    def _do_send(self, message, callback, notag):
-        # bind the callback to a new tag.
-        # self._tags.get() should block until a tag becomes available.
-        # if a recoverable error occurs this step will be manually
-        # rolled back.
-        if not notag:
+    def _do_send(self, request_type, request,
+                 on_success, on_error,
+                 sequential):
+
+        if not sequential:
+            # bind the callback to a new tag.
+            # self._tags.get() should block until a tag becomes available.
             tag = self._tags.get()
+            assert tag not in self._callbacks
+            self._callbacks[tag] = (on_success, on_error,)
         else:
             tag = self._NOTAG
+            self._sequential_callbacks.put((on_success, on_error,))
 
-        assert tag not in self._callbacks
-        self._callbacks[tag] = callback
-
-        # TODO TODO TODO TODO
-        type = 1
-
-        header = _header.pack(len(message)+_header.size, type, tag)
+        header = _header.pack(len(request)+_header.size, request_type, tag)
 
         self._socket.sendall(header)
-        self._socket.sendall(message)
+        self._socket.sendall(request)
 
     def _send_loop(self):
         """ loop for sending packets
@@ -124,18 +126,18 @@ class Marshall(object):
 
     def _do_recv(self):
         header = recvall(self._socket, _header.size)
-        length, type, tag = struct.unpack("!IHH", header)
+        length, type_, tag = _header.unpack(header)
         if length < _header.size:
             raise Exception("invalid frame length: %i" % length)
 
         body = recvall(self._socket, length - _header.size)
 
         # retrieve callback and return tag to free list
-        callback = self._callbacks.pop(tag)
+        on_success, on_error = self._callbacks.pop(tag)
         self._tags.put(tag)
 
         try:
-            callback(body, None)
+            on_success(type_, body)
         except:
             log.exception("exception in user callback", stack_info=True)
 
@@ -156,51 +158,64 @@ class Marshall(object):
                 log.exception("error in receive thread", stack_info=True)
                 self.close(e)
 
-    def _request_sync(self, packet, notag):
+    def request(self, request_type, request, sequential=False):
+        """
+        """
         cond = Condition()
         # dict is used as reference type to allow result to be returned from
         # seperate thread
-        response_container = {}
+        response_cont = {}
 
-        def callback(response, error=None):
-            # store result
-            response_container.update(dict(response=response, error=error))
-            # wake up waiting thread
+        def on_success(response_type, response):
+            response_cont.update({
+                "success": True,
+                "type": response_type,
+                "response": response,
+            })
+            with cond:
+                cond.notify()
+
+        def on_error(exception):
+            response_cont.update({
+                "success": False,
+                "exception": exception,
+            })
             with cond:
                 cond.notify()
 
         with cond:
-            self.request(packet, callback, notag)
+            self.request_async(request_type, request,
+                               on_success, on_error,
+                               sequential)
             cond.wait()
 
-            if response_container["error"]:
-                raise response_container["error"]
+        if not response_cont["success"]:
+            raise response_cont["exception"]
 
-            return response_container["response"]
+        return response_cont["type"], response_cont["response"]
 
-    def request(self, packet, callback=None, notag=False):
+    def request_async(self, request_type, request,
+                      on_success, on_error=None,
+                      sequential=False):
         """ Send a 9p request to the server and wait for a response
 
         :param packet: the contents of the packet to send to the server.
         :type packet: bytestring
 
-        :param callback: if provided the request will be executed
-            asynchronously.  If the request is successfull the callback will be
-            called with a bytes() object containing the contents of the
-            response packet as it's first argument and None as it's second.
-            If an error occurs the first argument will contain None and the
-            second an Exception() object describing the error.
+        :param on_success: type -> bytes -> void
+        :param on_error: Exception -> void
+
+        :sequential: send request with no tag.  responses to untagged requests
+            are sent in the order that the requests were received
 
         :returns: bytestring -- The reply recieved from the server or nothing
             if a callback was provided.
         """
-        if callback is None:
-            # request sync adds a default callback the recalls request
-            return self._request_sync(packet, notag)
-
         log.info("request")
 
-        self._send_queue.put((packet, callback, notag,))
+        self._send_queue.put((request_type, request,
+                              on_success, on_error,
+                              sequential,))
 
     def shutdown(self):
         """ Attempt to gracefully shut down the server
@@ -231,9 +246,9 @@ class Marshall(object):
         self._socket.shutdown(socket.SHUT_RDWR)
         self._socket.close()
 
-        for callback in self._callbacks.values():
+        for on_success, on_error in self._callbacks.values():
             try:
-                callback(None, None)
+                on_error(Exception("shutdown"))
             except:
                 log.exception("exception in user callback", stack_info=True)
 
@@ -255,9 +270,9 @@ class Marshall(object):
         self._send_queue.put(False)
         self._recv_queue.put(False)
 
-        for callback in self._callbacks.values():
+        for on_success, on_error in self._callbacks.values():
             try:
-                callback(None, error)
+                on_error(Exception("close"))
             except:
                 log.exception("exception in user callback", stack_info=True)
 
