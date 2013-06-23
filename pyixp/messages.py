@@ -2,7 +2,6 @@ from collections import namedtuple
 
 from pyixp import fields
 
-
 word8 = uint8 = fields.UInt(1)
 word16 = uint16 = fields.UInt(2)
 word32 = uint32 = fields.UInt(4)
@@ -25,60 +24,46 @@ class Message(object):
         return cls._make(sequence)
 
 
-def message_type(name, *fields_):
-    names = (field[0] for field in fields_)
-    types = (field[1] for field in fields_)
+def message_type(name, type_id, *fields_defs):
+    names = (field[0] for field in fields_defs)
+    types = (field[1] for field in fields_defs)
 
     TupleBase = namedtuple(name, names)
     layout = fields.Sequence(*types)
 
-    return type(name, (Message, TupleBase,), {"_layout": layout})
+    return type(name, (Message, TupleBase,), {
+        "_layout": layout,
+        "type_id": type_id})
 
 
 TVersion = message_type(
-    "TVersion",
+    "TVersion", 100,
     ("msize", uint32),
     ("version", string)
 )
 
 RVersion = message_type(
-    "RVersion",
+    "RVersion", 101,
     ("msize", uint32),
     ("version", string)
 )
 
 
 TAuth = message_type(
-    "TAuth",
+    "TAuth", 102,
     ("afid", word32),
     ("uname", string),
     ("aname", string)
 )
 
 RAuth = message_type(
-    "RAuth",
+    "RAuth", 103,
     ("aqid", fields.Array(2, string))  # TODO
 )
 
 
-RError = message_type(
-    "RError",
-    ("ename", string)
-)
-
-
-TFlush = message_type(
-    "TFlush",
-    ("oldtag", word16)
-)
-
-RFlush = message_type(
-    "RFlush"
-)
-
-
 TAttach = message_type(
-    "TAttach",
+    "TAttach", 104,
     ("fid", word32),
     ("afid", word32),
     ("uname", string),
@@ -86,53 +71,55 @@ TAttach = message_type(
 )
 
 RAttach = message_type(
-    "RAttach",
+    "RAttach", 105,
     ("qid", fields.Array(2, string))  # TODO
 )
 
 
+RError = message_type(
+    "RError", 107,
+    ("ename", string)
+)
+
+
+TFlush = message_type(
+    "TFlush", 108,
+    ("oldtag", word16)
+)
+
+RFlush = message_type(
+    "RFlush", 109
+)
+
+
 TWalk = message_type(
-    "TWalk",
+    "TWalk", 110,
     ("fid", word32),
     ("newfid", word32),
     ("path", fields.Array(2, string))
 )
 
 RWalk = message_type(
-    "RWalk",
+    "RWalk", 111,
     ("qid", fields.Array(2, qid))
 )
 
 
 TOpen = message_type(
-    "TOpen",
+    "TOpen", 112,
     ("fid", word32),
     ("mode", word8)
 )
 
 ROpen = message_type(
-    "ROpen",
+    "ROpen", 113,
     ("qid", qid),
     ("iounit", word32)
 )
 
 
-TOpenFD = message_type(
-    "TOpenFD",
-    ("fid", word32),
-    ("mode", word8)
-)
-
-ROpenFD = message_type(
-    "ROpenFD",
-    ("qid", qid),
-    ("iounit", word32),
-    ("unixfd", word32)
-)
-
-
 TCreate = message_type(
-    "TCreate",
+    "TCreate", 114,
     ("fid", word32),
     ("name", string),
     ("perm", word32),
@@ -140,75 +127,89 @@ TCreate = message_type(
 )
 
 RCreate = message_type(
-    "RCreate",
+    "RCreate", 115,
     ("qid", qid),
     ("iounit", word32)
 )
 
 
 TRead = message_type(
-    "TRead",
+    "TRead", 116,
     ("fid", word32),
     ("offset", fields.UInt(8)),
     ("count", uint32)
 )
 
 RRead = message_type(
-    "RRead",
+    "RRead", 117,
     ("data", fields.Data(4))
 )
 
 
 TWrite = message_type(
-    "TWrite",
+    "TWrite", 118,
     ("fid", word32),
     ("offset", fields.UInt(8)),
     ("data", fields.Data(4))
 )
 
 RWrite = message_type(
-    "RWrite",
+    "RWrite", 119,
     ("count", uint32)
 )
 
 
 TClunk = message_type(
-    "TClunk",
+    "TClunk", 120,
     ("fid", word32),
 )
 
 RClunk = message_type(
-    "RClunk"
+    "RClunk", 121
 )
 
 
 TRemove = message_type(
-    "TRemove",
+    "TRemove", 122,
     ("fid", word32),
 )
 
 TRemove = message_type(
-    "TRemove"
+    "TRemove", 122
 )
 
 
 TStat = message_type(
-    "TStat",
+    "TStat", 124,
     ("fid", word32),
 )
 
 RStat = message_type(
-    "RStat",
+    "RStat", 125,
     ("stat", stat)
 )
 
 
 TWStat = message_type(
-    "TWStat",
+    "TWStat", 126,
     ("fid", word32),
     ("stat", stat)
 )
 
 RWStat = message_type(
-    "RWStat"
+    "RWStat", 127
+)
+
+
+TOpenFD = message_type(
+    "TOpenFD", 98,
+    ("fid", word32),
+    ("mode", word8)
+)
+
+ROpenFD = message_type(
+    "ROpenFD", 99,
+    ("qid", qid),
+    ("iounit", word32),
+    ("unixfd", word32)
 )
