@@ -123,6 +123,7 @@ class Marshall(object):
             except Exception as error:
                 log.exception("error in send thread", stack_info=True)
                 self.close(error)
+                return
 
     def _do_recv(self):
         header = recvall(self._socket, _header.size)
@@ -157,6 +158,7 @@ class Marshall(object):
             except Exception as e:
                 log.exception("error in receive thread", stack_info=True)
                 self.close(e)
+                return
 
     def request(self, request_type, request, sequential=False):
         """
