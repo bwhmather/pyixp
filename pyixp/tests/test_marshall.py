@@ -29,7 +29,10 @@ class SyncTest(unittest.TestCase):
         ]
 
         for message in messages:
-            assert marshall.request(message) == message
+            request_type, request = 1, message
+            response_type, response = marshall.request(request_type, request)
+            self.assertEqual(request_type, response_type)
+            self.assertEqual(request, response)
 
         marshall.shutdown()
         server_socket.close()
