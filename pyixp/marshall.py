@@ -9,7 +9,7 @@ __all__ = 'Marshall',
 
 log = logging.getLogger(__name__)
 
-_header = struct.Struct("!IHH")
+_header = struct.Struct("!IbH")
 
 
 def recvall(socket, n):
