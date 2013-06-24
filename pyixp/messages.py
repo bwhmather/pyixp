@@ -2,6 +2,28 @@ from collections import namedtuple
 
 from pyixp import fields
 
+
+__all__ = [
+    "Message",
+    "message_type",
+    "TVersion", "RVersion",
+    "TAuth", "RAuth",
+    "TAttach", "RAttach",
+    "RError",
+    "TFlush", "RFlush",
+    "TWalk", "RWalk",
+    "TOpen", "ROpen",
+    "TCreate", "RCreate",
+    "TRead", "RRead",
+    "TWrite", "RWrite",
+    "TClunk", "RClunk",
+    "TRemove", "RRemove",
+    "TStat", "RStat",
+    "TWStat", "RWStat",
+    "TOpenFD", "ROpenFD",
+]
+
+
 word8 = uint8 = fields.UInt(1)
 word16 = uint16 = fields.UInt(2)
 word32 = uint32 = fields.UInt(4)
@@ -33,7 +55,8 @@ def message_type(name, type_id, *fields_defs):
 
     return type(name, (Message, TupleBase,), {
         "_layout": layout,
-        "type_id": type_id})
+        "type_id": type_id,
+    })
 
 
 TVersion = message_type(
@@ -174,8 +197,8 @@ TRemove = message_type(
     ("fid", word32),
 )
 
-TRemove = message_type(
-    "TRemove", 122
+RRemove = message_type(
+    "RRemove", 122
 )
 
 
