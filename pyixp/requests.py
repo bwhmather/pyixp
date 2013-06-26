@@ -38,7 +38,7 @@ class Request(object):
         marshall.request_async(self.request_type.type_id,
                                self._request,
                                _on_success, on_error,
-                               self.sequential)
+                               self.serialize)
 
 
 class VersionRequest(Request):
