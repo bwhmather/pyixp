@@ -26,12 +26,29 @@ __all__ = [
 
 word8 = uint8 = fields.UInt(1)
 word16 = uint16 = fields.UInt(2)
-word32 = uint32 = fields.UInt(4)
+word32 = uint32 = timestamp = fields.UInt(4)
+word64 = uint64 = fields.UInt(8)
 
 string = fields.String(2)
 
-qid = object()
-stat = object()
+qid = fields.Struct(
+    ("type", word8),
+    ("version", uint32),
+    ("path", word64))
+
+stat = fields.Struct(
+    ("size", uint16),
+    ("type", word16),
+    ("dev", word32),
+    ("qid", qid),
+    ("mode", word32),
+    ("atime", timestamp),
+    ("mtime", timestamp),
+    ("length", uint64),
+    ("name", string),
+    ("uid", string),
+    ("gid", string),
+    ("muid", string))
 
 
 class Message(object):
