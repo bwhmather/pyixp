@@ -16,6 +16,12 @@ class IdentityTest(unittest.TestCase):
         self.assertEqual(value, unpacked)
 
     def test_uint(self):
+        uint16 = fields.UInt(2)
+        self.pack_and_unpack(uint16, 0)
+        self.pack_and_unpack(uint16, 0xffff)
+        self.pack_and_unpack(uint16, 0xff00)
+        self.pack_and_unpack(uint16, 0x0123)
+
         uint32 = fields.UInt(4)
         self.pack_and_unpack(uint32, 0)
         self.pack_and_unpack(uint32, 0xffffffff)
@@ -23,11 +29,12 @@ class IdentityTest(unittest.TestCase):
         self.pack_and_unpack(uint32, 0x01234567)
         self.pack_and_unpack(uint32, 0x89abcdef)
 
-        uint16 = fields.UInt(2)
-        self.pack_and_unpack(uint16, 0)
-        self.pack_and_unpack(uint16, 0xffff)
-        self.pack_and_unpack(uint16, 0xff00)
-        self.pack_and_unpack(uint16, 0x0123)
+        uint64 = fields.UInt(8)
+        self.pack_and_unpack(uint64, 0)
+        self.pack_and_unpack(uint64, 0xffffffffffffffff)
+        self.pack_and_unpack(uint64, 0xffff0000ffff0000)
+        self.pack_and_unpack(uint64, 0x0123456789abcded)
+        self.pack_and_unpack(uint64, 0x89abcdef01234567)
 
     def test_data(self):
         data = fields.Data(2)
