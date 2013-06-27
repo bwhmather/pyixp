@@ -1,12 +1,24 @@
 from pyixp.marshall import Marshall
 from pyixp import requests
 
+import logging
+
+log = logging.getLogger(__name__)
+
+VERSION = "9P2000"
+
 
 class Client(object):
-    def __init__(self, connection):
+    def __init__(self, connection, max_message_size=0xffffffff):
         self._marshall = Marshall(connection)
 
-        self.version(0xffff, "9P2000")
+        resp = log.info(self.version(max_message_size, VERSION))
+        if resp.msize > max_message_size:
+            raise Exception("invalid message size requested by server")
+        if resp.version != VERSION:
+            raise Exception("unsupported version")
+        # TODO pass to marshall
+        self._max_message_size = self.marshall.max_message_size = resp.msize
 
     def version(self, *args, **kwargs):
         return requests.VersionRequest(*args, **kwargs).submit(self._marshall)

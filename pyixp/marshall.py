@@ -47,6 +47,10 @@ class Marshall(object):
             an earlier request to finish.  Maximum possible value is 65535.
         :type maxrequests: unsigned 16bit integer (0 <= maxtag <= 65535)
         """
+        # the maximum length of a packet, including headers, that can be sent
+        # by the marshall.  Should be set after receiving a version response
+        self.max_message_size = 0xffffffff
+
         self._socket = socket
 
         # queue of ``(type, request, on_error, on_success, sequential)`` tuples
@@ -95,7 +99,11 @@ class Marshall(object):
             tag = self._NOTAG
             self._sequential_callbacks.put((on_success, on_error,))
 
-        header = _header.pack(len(request)+_header.size, request_type, tag)
+        length = len(request) + _header.size
+        if length > self.max_message_size:
+            raise Exception("packet size exceeds maximum")
+
+        header = _header.pack(length, request_type, tag)
 
         self._socket.sendall(header)
         self._socket.sendall(request)
