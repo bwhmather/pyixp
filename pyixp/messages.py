@@ -23,28 +23,24 @@ __all__ = [
     "TOpenFD", "ROpenFD",
 ]
 
+timestamp = fields.uint32l
+string = fields.String(fields.uint16l)
 
-word8 = uint8 = fields.UInt(1)
-word16 = uint16 = fields.UInt(2)
-word32 = uint32 = timestamp = fields.UInt(4)
-word64 = uint64 = fields.UInt(8)
-
-string = fields.String(2)
 
 qid = fields.Struct(
-    ("type", word8),
-    ("version", uint32),
-    ("path", word64))
+    ("type", fields.uint8),
+    ("version", fields.uint32l),
+    ("path", fields.uint64l))
 
 stat = fields.Struct(
-    ("size", uint16),
-    ("type", word16),
-    ("dev", word32),
+    ("size", fields.uint16l),
+    ("type", fields.uint16l),
+    ("dev", fields.uint32l),
     ("qid", qid),
-    ("mode", word32),
+    ("mode", fields.uint32l),
     ("atime", timestamp),
     ("mtime", timestamp),
-    ("length", uint64),
+    ("length", fields.uint64l),
     ("name", string),
     ("uid", string),
     ("gid", string),
@@ -78,41 +74,41 @@ def message_type(name, type_id, *fields_defs):
 
 TVersion = message_type(
     "TVersion", 100,
-    ("msize", uint32),
+    ("msize", fields.uint32l),
     ("version", string)
 )
 
 RVersion = message_type(
     "RVersion", 101,
-    ("msize", uint32),
+    ("msize", fields.uint32l),
     ("version", string)
 )
 
 
 TAuth = message_type(
     "TAuth", 102,
-    ("afid", word32),
+    ("afid", fields.uint32l),
     ("uname", string),
     ("aname", string)
 )
 
 RAuth = message_type(
     "RAuth", 103,
-    ("aqid", fields.Array(2, string))  # TODO
+    ("aqid", fields.Array(fields.uint16l, string))  # TODO
 )
 
 
 TAttach = message_type(
     "TAttach", 104,
-    ("fid", word32),
-    ("afid", word32),
+    ("fid", fields.uint32l),
+    ("afid", fields.uint32l),
     ("uname", string),
     ("aname", string)
 )
 
 RAttach = message_type(
     "RAttach", 105,
-    ("qid", fields.Array(2, string))  # TODO
+    ("qid", fields.Array(fields.uint16l, string))  # TODO
 )
 
 
@@ -124,7 +120,7 @@ RError = message_type(
 
 TFlush = message_type(
     "TFlush", 108,
-    ("oldtag", word16)
+    ("oldtag", fields.uint16l)
 )
 
 RFlush = message_type(
@@ -134,74 +130,74 @@ RFlush = message_type(
 
 TWalk = message_type(
     "TWalk", 110,
-    ("fid", word32),
-    ("newfid", word32),
-    ("path", fields.Array(2, string))
+    ("fid", fields.uint32l),
+    ("newfid", fields.uint32l),
+    ("path", fields.Array(fields.uint16l, string))
 )
 
 RWalk = message_type(
     "RWalk", 111,
-    ("qid", fields.Array(2, qid))
+    ("qid", fields.Array(fields.uint16l, qid))
 )
 
 
 TOpen = message_type(
     "TOpen", 112,
-    ("fid", word32),
-    ("mode", word8)
+    ("fid", fields.uint32l),
+    ("mode", fields.uint8)
 )
 
 ROpen = message_type(
     "ROpen", 113,
     ("qid", qid),
-    ("iounit", word32)
+    ("iounit", fields.uint32l)
 )
 
 
 TCreate = message_type(
     "TCreate", 114,
-    ("fid", word32),
+    ("fid", fields.uint32l),
     ("name", string),
-    ("perm", word32),
-    ("mode", word8)
+    ("perm", fields.uint32l),
+    ("mode", fields.uint8)
 )
 
 RCreate = message_type(
     "RCreate", 115,
     ("qid", qid),
-    ("iounit", word32)
+    ("iounit", fields.uint32l)
 )
 
 
 TRead = message_type(
     "TRead", 116,
-    ("fid", word32),
-    ("offset", fields.UInt(8)),
-    ("count", uint32)
+    ("fid", fields.uint32l),
+    ("offset", fields.uint64l),
+    ("count", fields.uint32l)
 )
 
 RRead = message_type(
     "RRead", 117,
-    ("data", fields.Data(4))
+    ("data", fields.Data(fields.uint32l))
 )
 
 
 TWrite = message_type(
     "TWrite", 118,
-    ("fid", word32),
-    ("offset", fields.UInt(8)),
-    ("data", fields.Data(4))
+    ("fid", fields.uint32l),
+    ("offset", fields.uint64l),
+    ("data", fields.Data(fields.uint32l))
 )
 
 RWrite = message_type(
     "RWrite", 119,
-    ("count", uint32)
+    ("count", fields.uint32l)
 )
 
 
 TClunk = message_type(
     "TClunk", 120,
-    ("fid", word32),
+    ("fid", fields.uint32l),
 )
 
 RClunk = message_type(
@@ -211,7 +207,7 @@ RClunk = message_type(
 
 TRemove = message_type(
     "TRemove", 122,
-    ("fid", word32),
+    ("fid", fields.uint32l),
 )
 
 RRemove = message_type(
@@ -221,7 +217,7 @@ RRemove = message_type(
 
 TStat = message_type(
     "TStat", 124,
-    ("fid", word32),
+    ("fid", fields.uint32l),
 )
 
 RStat = message_type(
@@ -232,7 +228,7 @@ RStat = message_type(
 
 TWStat = message_type(
     "TWStat", 126,
-    ("fid", word32),
+    ("fid", fields.uint32l),
     ("stat", stat)
 )
 
@@ -243,13 +239,13 @@ RWStat = message_type(
 
 TOpenFD = message_type(
     "TOpenFD", 98,
-    ("fid", word32),
-    ("mode", word8)
+    ("fid", fields.uint32l),
+    ("mode", fields.uint8)
 )
 
 ROpenFD = message_type(
     "ROpenFD", 99,
     ("qid", qid),
-    ("iounit", word32),
-    ("unixfd", word32)
+    ("iounit", fields.uint32l),
+    ("unixfd", fields.uint32l)
 )
