@@ -133,9 +133,12 @@ class Marshall(object):
 
         body = recvall(self._socket, length - _header.size)
 
-        # retrieve callback and return tag to free list
-        on_success, on_error = self._callbacks.pop(tag)
-        self._tags.put(tag)
+        if tag == self._NOTAG:
+            on_success, on_error = self._sequential_callbacks.get()
+        else:
+            # retrieve callback and return tag to free list
+            on_success, on_error = self._callbacks.pop(tag)
+            self._tags.put(tag)
 
         try:
             on_success(type_, body)
