@@ -17,8 +17,7 @@ class Client(object):
             raise Exception("invalid message size requested by server")
         if resp.version != VERSION:
             raise Exception("unsupported version")
-        # TODO pass to marshall
-        self._max_message_size = self.marshall.max_message_size = resp.msize
+        self._max_message_size = self._marshall.max_message_size = resp.msize
 
     def version(self, *args, **kwargs):
         return requests.VersionRequest(*args, **kwargs).submit(self._marshall)
