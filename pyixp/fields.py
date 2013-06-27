@@ -1,3 +1,6 @@
+import struct
+
+
 class Field(object):
     def pack(self, values):
         """
@@ -20,25 +23,37 @@ class Field(object):
         return super(Field, self).__repr__()
 
 
-class UInt(Field):
-    def __init__(self, size, signed=True):
-        super(UInt, self).__init__()
-        self.size = size
+class StructField(Field):
+    def __init__(self, format):
+        self._struct = struct.Struct(format)
 
-    def pack(self, val):
-        assert val == val & 2**(8*self.size) - 1, "Arithmetic overflow"
-        return bytes((val >> 8*i) & 0xff for i in range(0, self.size))
+    def pack(self, value):
+        return self._struct.pack(value)
 
     def unpack(self, data, offset=0):
-        res = sum((data[offset + i] << 8*i for i in range(0, self.size)))
-        return res, self.size
+        return self._struct.unpack_from(data, offset)[0], self._struct.size
 
-    def repr(self):
-        return '%s(%d)' % (self.__class__.__name__, self.size)
+int8 = StructField("c")
+uint8 = StructField("B")
+
+int16 = StructField("h")
+int16l = StructField("<h")
+uint16 = StructField("H")
+uint16l = StructField("<H")
+
+int32 = StructField("i")
+int32l = StructField("<i")
+uint32 = StructField("I")
+uint32l = StructField("<I")
+
+int64 = StructField("q")
+int64l = StructField("<q")
+uint64 = StructField("Q")
+uint64l = StructField("<Q")
 
 
 class Data(Field):
-    def __init__(self, size=UInt(2)):
+    def __init__(self, size=uint16):
         super(Data, self).__init__()
         self._size = size
 
@@ -60,7 +75,7 @@ class Data(Field):
 
 
 class String(Data):
-    def __init__(self, size=UInt(2), encoding='utf-8'):
+    def __init__(self, size=uint16, encoding='utf-8'):
         super(String, self).__init__(size)
         self._encoding = encoding
 
@@ -74,7 +89,7 @@ class String(Data):
 
 
 class Array(Field):
-    def __init__(self, size=UInt(2), item):
+    def __init__(self, size, item):
         super(Array, self).__init__()
         self._size = size
         self._item = item
