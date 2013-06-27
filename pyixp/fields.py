@@ -38,46 +38,62 @@ class UInt(Field):
 
 
 class Data(Field):
-    def __init__(self, size=2):
+    def __init__(self, size=UInt(2)):
         super(Data, self).__init__()
-        self._header = UInt(size)
+        self._size = size
 
     def pack(self, val):
-        return self._header.pack(len(val)) + val
+        if isinstance(self._size, int):
+            assert len(val) == self._size
+            return val
+        else:
+            return self._size.pack(len(val)) + val
 
     def unpack(self, data, offset=0):
-        body_size, header_size = self._header.unpack(data, offset)
-        offset += header_size
+        if isinstance(self._size, int):
+            body_size = self._size
+        else:
+            body_size, header_size = self._size.unpack(data, offset)
+            offset += header_size
         assert offset + body_size <= len(data), "String too long to unpack"
         return data[offset:offset + body_size], header_size + body_size
 
 
 class String(Data):
+    def __init__(self, size=UInt(2), encoding='utf-8'):
+        super(String, self).__init__(size)
+        self._encoding = encoding
+
     def pack(self, val):
-        val = val.encode('utf-8')
+        val = val.encode(self._encoding)
         return super(String, self).pack(val)
 
     def unpack(self, data, offset=0):
         value, size = super(String, self).unpack(data, offset)
-        return value.decode('utf-8'), size
+        return value.decode(self._encoding), size
 
 
 class Array(Field):
-    def __init__(self, size, item_type):
+    def __init__(self, size=UInt(2), item):
         super(Array, self).__init__()
-        self._header = UInt(size)
-        self._item = item_type
+        self._size = size
+        self._item = item
 
     def pack(self, values):
-        result = self._header.pack(len(values))
+        result = b''
+        if not isinstance(self._size, int):
+            result += self._size.pack(len(values))
         for value in values:
             result += self._item.pack(value)
         return result
 
     def unpack(self, data, offset=0):
         start = offset
-        item_count, size = self._header.unpack(data, offset)
-        offset += size
+        if isinstance(self._size, int):
+            item_count = self._size
+        else:
+            item_count, size = self._size.unpack(data, offset)
+            offset += size
         result = []
         for i in range(0, item_count):
             value, size = self._item.unpack(data, offset)
