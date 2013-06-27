@@ -49,3 +49,9 @@ class Client(object):
 
     def openfd(self, *args, **kwargs):
         return requests.OpenFDRequest(*args, **kwargs).submit(self._marshall)
+
+    def shutdown(self):
+        self._marshall.shutdown()
+
+    def close(self):
+        self._marshall.close()
