@@ -6,6 +6,8 @@ class Client(object):
     def __init__(self, connection):
         self._marshall = Marshall(connection)
 
+        self.version(0xffff, "9P2000")
+
     def version(self, *args, **kwargs):
         return requests.VersionRequest(*args, **kwargs).submit(self._marshall)
 
