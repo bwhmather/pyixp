@@ -9,10 +9,10 @@ VERSION = "9P2000"
 
 
 class Client(object):
-    def __init__(self, connection, max_message_size=0xffffffff):
+    def __init__(self, connection, max_message_size=0x0000ffff):
         self._marshall = Marshall(connection)
 
-        resp = log.info(self.version(max_message_size, VERSION))
+        resp = self.version(max_message_size, VERSION)
         if resp.msize > max_message_size:
             raise Exception("invalid message size requested by server")
         if resp.version != VERSION:
