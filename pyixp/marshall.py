@@ -34,7 +34,7 @@ class Marshall(object):
     """ Serialises sending of packets and associates them with their
     corresponding responses.
     """
-    _NOTAG = 0
+    _NOTAG = 0xffff
 
     def __init__(self, socket, maxrequests=1024):
         """
